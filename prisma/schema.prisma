@@ -1,0 +1,107 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id          String   @id
+  username    String   @unique
+  displayName String
+  googleId    String   @unique
+  avatar      String?
+  about       String?
+  pronouns    String[]
+  shortBio    String?
+
+  stories   Story[]
+  claps     Clap[]
+  sessions  Session[]
+  bookmarks Bookmark[]
+  following Follow[]   @relation("Following")
+  followers Follow[]   @relation("Followers")
+  comments  Comment[]
+
+  createdAt DateTime @default(now())
+
+  @@map("users")
+}
+
+model Session {
+  id        String   @id
+  userId    String
+  expiresAt DateTime
+
+  user User @relation(references: [id], fields: [userId], onDelete: Cascade)
+
+  @@map("sessions")
+}
+
+model Story {
+  id       String  @id @default(dbgenerated("concat('story_',replace(cast(gen_random_uuid() as text), '-', ''))")) @db.Text
+  authorId String
+  user     User    @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  content  String?
+  publish  Boolean @default(false)
+
+  topics    String[]
+  claps     Clap[]
+  bookmarks Bookmark[]
+  comments  Comment[]
+
+  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now())
+
+  @@map("stories")
+}
+
+model Comment {
+  id      String @id @default(cuid())
+  content String
+  userId  String
+  user    User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  storyId String
+  story   Story  @relation(fields: [storyId], references: [id], onDelete: Cascade)
+  claps   Clap[]
+
+  createdAt DateTime @default(now())
+
+  @@map("comments")
+}
+
+model Follow {
+  followerId  String
+  follower    User   @relation("Following", fields: [followerId], references: [id], onDelete: Cascade)
+  followingId String
+  following   User   @relation("Followers", fields: [followingId], references: [id], onDelete: Cascade)
+
+  @@unique([followerId, followingId])
+  @@map("follows")
+}
+
+model Clap {
+  id        String   @id @default(dbgenerated("concat('clap_',replace(cast(gen_random_uuid() as text), '-', ''))")) @db.Text
+  senderId  String
+  sender    User     @relation(fields: [senderId], references: [id], onDelete: Cascade)
+  storyId   String
+  story     Story    @relation(fields: [storyId], references: [id], onDelete: Cascade)
+  commentId String?
+  comment   Comment? @relation(fields: [commentId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@map("claps")
+}
+
+model Bookmark {
+  id      String @id @default(cuid())
+  userId  String
+  user    User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  storyId String
+  story   Story  @relation(fields: [storyId], references: [id], onDelete: Cascade)
+
+  @@map("bookmarks")
+}
